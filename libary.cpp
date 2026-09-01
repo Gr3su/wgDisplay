@@ -57,13 +57,26 @@ void requestLibaryData(HTTPClient& http, vector<Libary>& libaries){
 }
 
 vector<Libary> sendLibaryRequest(){
-  vector<Libary> libaries;
   const char* url = "https://seatfinder.bibliothek.kit.edu/karlsruhe/getdata.php?location[0]=LSG%2CLSM%2CLST%2CLSN%2CLSW%2CLBS%2CBIB-N%2CL3%2CL2%2CSAR%2CL1%2CLEG%2CFBC%2CFBP%2CLAF%2CFBA%2CFBI%2CFBM%2CFBH%2CFBD%2CBLB%2CWIS&values[0]=seatestimate%2Cmanualcount&after[0]=-10800seconds&before[0]=now&limit[0]=-17&location[1]=LSG%2CLSM%2CLST%2CLSN%2CLSW%2CLBS%2CBIB-N%2CL3%2CL2%2CSAR%2CL1%2CLEG%2CFBC%2CFBP%2CLAF%2CFBA%2CFBI%2CFBM%2CFBH%2CFBD%2CBLB%2CWIS&values[1]=location&after[1]=&before[1]=now&limit[1]=1&refresh=&_=1775509589816";
+  const int maxAttempts = 2;
+  vector<Libary> lastResult;
 
-  HTTPClient http;
-  prepareHttpClient(http, url, ApplicationType::JSON);
-  requestLibaryData(http, libaries);
-  http.end();
+  for(int attempt = 0; attempt < maxAttempts; ++attempt){
+    vector<Libary> libaries;
 
-  return libaries;
+    HTTPClient http;
+    prepareHttpClient(http, url, ApplicationType::JSON);
+    requestLibaryData(http, libaries);
+    http.end();
+
+    lastResult = libaries;
+
+    if(!libaries.empty() && !(libaries.size() == 1 && libaries[0].totalSeats < 0)){
+      return libaries;
+    }
+
+    Serial.println("Libary Antwort leer, Anfrage wird erneut gesendet");
+  }
+
+  return lastResult;
 }

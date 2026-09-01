@@ -55,20 +55,31 @@ void requestDeparturesForStation(HTTPClient& http, vector<Departure>& departures
 }
 
 vector<Departure> sendTriasRequest(){
-  vector<Departure> departures;
   const char* url = "https://projekte.kvv-efa.de/grosstrias/trias";
+  const int maxAttempts = 2;
+  vector<Departure> lastResult;
 
-  HTTPClient http;
-  prepareHttpClient(http, url, ApplicationType::XML);
+  for(int attempt = 0; attempt < maxAttempts; ++attempt){
+    vector<Departure> departures;
 
-  requestDeparturesForStation(http, departures, payloadBusLine, 'b');
-  http.end();
-  prepareHttpClient(http, url, ApplicationType::XML);
-  requestDeparturesForStation(http, departures, payloadTramLine, 't');
-  http.end();
-  
+    HTTPClient http;
+    prepareHttpClient(http, url, ApplicationType::XML);
+    requestDeparturesForStation(http, departures, payloadBusLine, 'b');
+    http.end();
 
-  sort(departures.begin(), departures.end(), [](const Departure &a, const Departure &b){ return a.times.timestamp < b.times.timestamp; });
+    prepareHttpClient(http, url, ApplicationType::XML);
+    requestDeparturesForStation(http, departures, payloadTramLine, 't');
+    http.end();
 
-  return departures;
+    lastResult = departures;
+
+    if(!departures.empty() && !(departures.size() == 1 && departures[0].type == 'e')){
+      sort(departures.begin(), departures.end(), [](const Departure &a, const Departure &b){ return a.times.timestamp < b.times.timestamp; });
+      return departures;
+    }
+
+    Serial.println("Trias Antwort leer, Anfrage wird erneut gesendet");
+  }
+
+  return lastResult;
 }
