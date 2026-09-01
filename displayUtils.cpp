@@ -20,13 +20,24 @@ void drawDepartures(GxEPD2_GFX &disp, vector<Departure> departures){
     disp.getTextBounds(departTime, 0, 0, &timeBx, &timeBy, &timeBw, &timeBh);
 
     disp.drawXBitmap(margin, yOffset, image, imageSize, imageSize, GxEPD_BLACK);
-    disp.setCursor(70 - textBx, yOffset + imageSize / 2 + textBh / 2);
+    // horizontal: desired left x positions (70 for name, 240 for time, 300 for lateness)
+    int nameLeftX = 70;
+    int timeLeftX = 240;
+    int lateLeftX = 300;
+    // vertical: center vertically in the image box
+    int centerY = yOffset + imageSize / 2;
+    // baseline = centerY - textBy - textBh/2
+    int nameBaseline = centerY - textBy - (textBh / 2);
+    int timeBaseline = centerY - timeBy - (timeBh / 2);
+
+    disp.setCursor(nameLeftX - textBx, nameBaseline);
     disp.print(text);
-    disp.setCursor(240 - timeBx, yOffset + imageSize / 2 + timeBh / 2);
+    disp.setCursor(timeLeftX - timeBx, timeBaseline);
     disp.print(departTime);
     if(lateness > 0){
-      disp.setCursor(300 - timeBx, yOffset + imageSize / 2 + timeBh / 2);
-      disp.print("(+");
+      disp.setCursor(lateLeftX - timeBx, timeBaseline);
+      disp.print("(");
+      disp.print("+");
       disp.print(lateness);
       disp.print(")");
     }
@@ -46,8 +57,9 @@ void drawClock(GxEPD2_GFX &disp){
 
   disp.setTextSize(10);
   disp.getTextBounds(clockTime, 0, 0, &textBx, &textBy, &textBw, &textBh);
-  
+
   int yPos = 183 + (disp.height() - 183) / 2 - textBh / 2;
+  // yPos is the top of the text bounding box; baseline = yPos - textBy
   disp.setCursor((disp.width() / 2) - (textBw / 2) - textBx, yPos - textBy);
   disp.setTextColor(GxEPD_WHITE);
   disp.fillRect((disp.width() / 2) - (textBw / 2) - padding, yPos - padding, textBw + padding * 2, textBh + padding * 2, GxEPD_BLACK);
@@ -60,38 +72,37 @@ void drawLibaries(GxEPD2_GFX &disp, vector<Libary> libaries){
   int margin = 5;
   int yOffset = margin;
   int16_t textBx, textBy; uint16_t textBw, textBh;
-  Serial.print(1);
+
+  if(libaries.empty()){
+    disp.drawXBitmap(360 + margin, yOffset, errorLogo, imageSize, imageSize, GxEPD_BLACK);
+    disp.setCursor(360 + imageSize + 2 * margin, yOffset);
+    disp.print("Biblio-Fehler");
+    return;
+  }
+
   if(libaries[0].totalSeats == -1){
     disp.drawXBitmap(360 + margin, yOffset, errorLogo, imageSize, imageSize, GxEPD_BLACK);
-    disp.setCursor(360 + imageSize + 2*margin, yOffset);
+    disp.setCursor(360 + imageSize + 2 * margin, yOffset);
     disp.print(libaries[0].name);
     return;
   }
-  Serial.print(2);
+
   for(int i = 0; i < libaries.size(); i++){
-    Serial.print(3);
     disp.getTextBounds(libaries[i].name, 0, 0, &textBx, &textBy, &textBw, &textBh);
-    Serial.print(4);
-    disp.setCursor(360 + margin, yOffset + 20 + textBh / 2);
-    Serial.print(5);
+    // desired top position for the library name block
+    int nameTop = yOffset + 20;
+    // include half the text height so the text sits visually centered above the line
+    int nameBaseline = nameTop - textBy - (textBh / 2); // baseline from top, adjusted
+    disp.setCursor(360 + margin, nameBaseline);
     disp.print(libaries[i].name);
-    Serial.print(6);
     disp.print(" - ");
-    Serial.print(7);
     if(libaries[i].totalSeats == 0){
-      Serial.print(8);
       disp.print("geschlossen");
-      Serial.print(9);
     } else{
-      Serial.print(10);
       disp.print(libaries[i].totalSeats - libaries[i].freeSeats);
-      Serial.print(11);
       disp.print("/");
-      Serial.print(12);
       disp.print(libaries[i].totalSeats);
-      Serial.print(13);
     }
-    Serial.print(14);
     yOffset += 45;
     disp.drawFastHLine(360, yOffset - 2, disp.width() - 360, GxEPD_BLACK);
   }

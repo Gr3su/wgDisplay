@@ -3,7 +3,7 @@
 #include <ESP8266WiFi.h>
 #include <time.h>
 #include <GxEPD2_BW.h>
-#include <Fonts/FreeMonoBold9pt7b.h>
+#include <Fonts/FreeSansBold9pt7b.h>
 
 #include "trias.h"
 #include "libary.h"
@@ -28,7 +28,7 @@ void setup() {
   display.init(baudrate, true, 2, false);
   display.setRotation(0);
   //display.setTextSize(2);
-  display.setFont(&FreeMonoBold9pt7b);
+  display.setFont(&FreeSansBold9pt7b);
   display.clearScreen();
   delay(2000);
   
@@ -77,7 +77,10 @@ void displayShortMessage(const char* message){
   display.firstPage();
   do{
     display.fillScreen(GxEPD_WHITE);
-    display.setCursor(0, display.height() - tbh);
+    // Place text so its bottom hits the screen bottom regardless of font metrics
+    int bottom = display.height();
+    int baseline = bottom - tby - tbh - 5; // baseline = bottom - (textBy + textBh)
+    display.setCursor(0, baseline);
     display.print(message);
   }
   while(display.nextPage());

@@ -8,27 +8,35 @@ void requestLibaryData(HTTPClient& http, vector<Libary>& libaries){
     int j = 0;
     vector<vector<const char*>> libariesShortNames = {{"LSG", "LSM", "LST", "LSN", "LSW", "LBS"}, {"L3", "L2", "SAR", "L1", "LEG"}, {"FBI"}};
     vector<const char*> libariesLongNames = {"Hauptbib", "InformatiKOM", "Infobib"};
-    const char* stringToSearch;
+    const char* stringToSearch = nullptr;
     String line;
-    int occupiedSeats, freeSeats;
-    
-    while(http.connected() && stream->available() && i < libariesShortNames.size()){
-      stringToSearch = libariesShortNames[i][j];
-      line = stream->readStringUntil(':');
-      
-      if(line.indexOf(stringToSearch) != -1){
-        if(stream->findUntil("\"occupied_seats\":", "]")){
-          occupiedSeats += stream->parseInt();
-        }
-        if(stream->findUntil("\"free_seats\":","]")){
-          freeSeats += stream->parseInt();
-        }
-        j++;
+    int occupiedSeats = 0;
+    int freeSeats = 0;
+
+    while(http.connected() && stream->available() && i < static_cast<int>(libariesShortNames.size())){
+      if(j < static_cast<int>(libariesShortNames[i].size())){
+        stringToSearch = libariesShortNames[i][j];
+      } else {
+        stringToSearch = nullptr;
       }
 
-      if(j >= libariesShortNames[i].size()){
+      if(stringToSearch != nullptr){
+        line = stream->readStringUntil(':');
+
+        if(line.indexOf(stringToSearch) != -1){
+          if(stream->findUntil("\"occupied_seats\":", "]")){
+            occupiedSeats += stream->parseInt();
+          }
+          if(stream->findUntil("\"free_seats\":", "]")){
+            freeSeats += stream->parseInt();
+          }
+          j++;
+        }
+      }
+
+      if(j >= static_cast<int>(libariesShortNames[i].size())){
         j = 0;
-        
+
         Libary libary;
         libary.freeSeats = freeSeats;
         libary.totalSeats = freeSeats + occupiedSeats;
@@ -39,14 +47,13 @@ void requestLibaryData(HTTPClient& http, vector<Libary>& libaries){
         occupiedSeats = 0;
         i++;
       }
-      
     }
-  } else{
+
+  if(libaries.empty()){
     libaries.push_back(libaryError);
-    Serial.println("Libary Anfrage fehlgeschlagen");
+    Serial.println("Libary Daten konnten nicht geparst werden");
   }
-  
-  
+}
 }
 
 vector<Libary> sendLibaryRequest(){
