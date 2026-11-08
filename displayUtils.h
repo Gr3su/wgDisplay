@@ -9,11 +9,12 @@
 #include "queries.h"
 #include "images.h"
 #include "mytime.h"
+#include "weather.h"
 #include "libary.h"
 #include "trias.h"
 
 using namespace std;
 
-void startDrawRoutine(GxEPD2_GFX &disp, vector<Departure> departures, vector<Libary> libaries);
+void startDrawRoutine(GxEPD2_GFX &disp, vector<Departure> departures, vector<Libary> libaries, WeatherData weather);
 
 #endif

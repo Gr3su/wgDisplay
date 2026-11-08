@@ -51,18 +51,23 @@ void drawDepartures(GxEPD2_GFX &disp, vector<Departure> departures){
 
 void drawClock(GxEPD2_GFX &disp){
   int16_t textBx, textBy; uint16_t textBw, textBh;
-  int padding = 6;
   char clockTime[6];
   timestampToLocaltime(time(nullptr), clockTime);
 
-  disp.setTextSize(10);
+  disp.setTextSize(2);
   disp.getTextBounds(clockTime, 0, 0, &textBx, &textBy, &textBw, &textBh);
 
-  int yPos = 183 + (disp.height() - 183) / 2 - textBh / 2;
-  // yPos is the top of the text bounding box; baseline = yPos - textBy
-  disp.setCursor((disp.width() / 2) - (textBw / 2) - textBx, yPos - textBy);
+  int boxX = 360;
+  int boxY = 138;
+  int boxW = disp.width() - 360;
+  int boxH = 45;
+
+  int centerX = boxX + boxW / 2;
+  int centerY = boxY + boxH / 2;
+
+  disp.fillRect(boxX, boxY, boxW, boxH, GxEPD_BLACK);
+  disp.setCursor(centerX - (textBw / 2) - textBx, centerY - textBy - (textBh / 2));
   disp.setTextColor(GxEPD_WHITE);
-  disp.fillRect((disp.width() / 2) - (textBw / 2) - padding, yPos - padding, textBw + padding * 2, textBh + padding * 2, GxEPD_BLACK);
   disp.print(clockTime);
   disp.setTextColor(GxEPD_BLACK);
   disp.setTextSize(1);
@@ -106,11 +111,155 @@ void drawLibaries(GxEPD2_GFX &disp, vector<Libary> libaries){
     yOffset += 45;
     disp.drawFastHLine(360, yOffset - 2, disp.width() - 360, GxEPD_BLACK);
   }
-  disp.drawLine(360, yOffset +2, disp.width(), yOffset + 43, GxEPD_BLACK);
 }
 
-void draw(GxEPD2_GFX &disp, vector<Departure> departures, vector<Libary> libaries){
+void drawWithChart(GxEPD2_GFX &disp, WeatherData weather, const unsigned char* wLogo){
+  int yOffset = 184;
+  int margin = 10;
+
+  disp.drawXBitmap(margin, yOffset + 5, wLogo, imageSize, imageSize, GxEPD_BLACK);
+
+  disp.setCursor(margin + 50, yOffset + 30);
+  disp.print("Aktuell: ");
+  disp.print(weather.currentTemp, 1);
+  disp.print("°C");
+  
+  disp.setCursor(margin + 230, yOffset + 30);
+  disp.print("Min: ");
+  disp.print(weather.minTemp, 1);
+  disp.print("°C  Max: ");
+  disp.print(weather.maxTemp, 1);
+  disp.print("°C");
+  
+  disp.setCursor(margin + 480, yOffset + 30);
+  disp.print("Regen-Wkt: ");
+  disp.print(weather.precipProbMax);
+  disp.print("%");
+  
+  int chartX = 50;
+  int chartY = 250;
+  int chartW = 700;
+  int chartH = 180;
+  
+  disp.drawFastVLine(chartX, chartY, chartH, GxEPD_BLACK);
+  disp.drawFastVLine(chartX + chartW, chartY, chartH, GxEPD_BLACK);
+  disp.drawFastHLine(chartX, chartY + chartH, chartW, GxEPD_BLACK);
+  
+  float tempMinBound = (int)weather.minTemp - 2.0;
+  float tempMaxBound = (int)weather.maxTemp + 2.0;
+  float tempRange = tempMaxBound - tempMinBound;
+  if(tempRange == 0) tempRange = 1;
+  
+  disp.setCursor(2, chartY + 15);
+  disp.print((int)tempMaxBound);
+  disp.setCursor(2, chartY + chartH);
+  disp.print((int)tempMinBound);
+  
+  float maxPrecip = 1.0;
+  for(int i=0; i<24; i++) {
+      if(weather.hourlyPrecip[i] > maxPrecip) maxPrecip = weather.hourlyPrecip[i];
+  }
+  disp.setCursor(chartX + chartW + 5, chartY + 15);
+  disp.print(maxPrecip, 1);
+  disp.setCursor(chartX + chartW + 5, chartY + chartH);
+  disp.print("0.0");
+  
+  int prevTX = -1, prevTY = -1;
+  int barW = chartW / 24 - 2;
+  if (barW < 2) barW = 2;
+  
+  for(int i=0; i<24; i++) {
+      int x = chartX + (i * chartW) / 23;
+      
+      float t = weather.hourlyTemp[i];
+      int ty = chartY + chartH - (int)(((t - tempMinBound) / tempRange) * chartH);
+      
+      float p = weather.hourlyPrecip[i];
+      int py = chartY + chartH - (int)((p / maxPrecip) * chartH);
+      
+      if (p > 0) {
+          int bW = barW;
+          if (x - bW/2 < chartX) bW = (x - chartX) * 2;
+          disp.fillRect(x - bW/2, py, bW, chartY + chartH - py, GxEPD_BLACK);
+      }
+      
+      if (prevTX != -1) {
+          disp.drawLine(prevTX, prevTY, x, ty, GxEPD_BLACK);
+          disp.drawLine(prevTX, prevTY-1, x, ty-1, GxEPD_BLACK); // Make line thicker
+      }
+      
+      prevTX = x; prevTY = ty;
+      
+      if (i % 4 == 0 || i == 23) {
+          disp.drawFastVLine(x, chartY + chartH, 5, GxEPD_BLACK);
+          disp.setCursor(x - 15, chartY + chartH + 20);
+          disp.print(i);
+          disp.print("h");
+      }
+  }
+}
+
+void drawWithoutChart(GxEPD2_GFX &disp, WeatherData weather, const unsigned char* wLogo, int randomIndex){
+  int yOffset = 250;
+  int margin = 10;
+
+  disp.drawXBitmap(margin, yOffset + 5, wLogo, imageSize, imageSize, GxEPD_BLACK);
+
+  disp.setTextSize(2);
+
+  disp.setCursor(margin + 50, yOffset + 35);
+  disp.print("Aktuell: ");
+  disp.print(weather.currentTemp, 1);
+  disp.print("C");
+  
+
+  disp.setCursor(margin + 50, yOffset + 75);
+  disp.print("Min: ");
+  disp.print(weather.minTemp, 1);
+  disp.print("°C");
+  disp.setCursor(margin + 50, yOffset + 115);
+  disp.print("Max: ");
+  disp.print(weather.maxTemp, 1);
+  disp.print("°C");
+
+  disp.setCursor(margin + 50, yOffset + 155);
+  disp.print("Regen-Wkt: ");
+  disp.print(weather.precipProbMax);
+  disp.print("%");
+
+  disp.setTextSize(1);
+
+  const unsigned char* image = (const unsigned char*) pgm_read_ptr(&(wallpapers[randomIndex]));
+  disp.drawXBitmap(360, 184, image, 440, 295, GxEPD_BLACK);
+}
+
+void drawWeatherAndChart(GxEPD2_GFX &disp, WeatherData weather, int randomIndex) {
+  if (weather.error) {
+    disp.setCursor(10, 200);
+    disp.print("Wetterdaten Fehler");
+    return;
+  }
+  
+  const unsigned char* wLogo = sonneLogo;
+  if (weather.weatherCode == 1 || weather.weatherCode == 2) wLogo = leichtbewoelktLogo;
+  else if (weather.weatherCode == 3) wLogo = wolkigLogo;
+  else if (weather.weatherCode == 45 || weather.weatherCode == 48) wLogo = nebelLogo;
+  else if (weather.weatherCode >= 51 && weather.weatherCode <= 67) wLogo = regenLogo;
+  else if (weather.weatherCode >= 71 && weather.weatherCode <= 77) wLogo = schneeLogo;
+  else if (weather.weatherCode >= 80 && weather.weatherCode <= 82) wLogo = regenLogo;
+  else if (weather.weatherCode >= 85 && weather.weatherCode <= 86) wLogo = schneeLogo;
+  else if (weather.weatherCode >= 95) wLogo = gewitterLogo;
+  
+  if(weather.precipProbMax != 0) drawWithChart(disp, weather, wLogo);
+  else drawWithoutChart(disp, weather, wLogo, randomIndex);
+  
+}
+
+void draw(GxEPD2_GFX &disp, vector<Departure> departures, vector<Libary> libaries, WeatherData weather){
   disp.firstPage();
+
+  const size_t wallpaperCount = sizeof(wallpapers) / sizeof(wallpapers[0]);
+  int randomIndex = random(0, wallpaperCount);
 
   do{
     drawDepartures(disp, departures);
@@ -118,11 +267,12 @@ void draw(GxEPD2_GFX &disp, vector<Departure> departures, vector<Libary> libarie
     disp.drawFastHLine(0, 183, disp.width(), GxEPD_BLACK);
 
     drawClock(disp);
+    drawWeatherAndChart(disp, weather, randomIndex);
 
   } while(disp.nextPage());
 }
 
-void startDrawRoutine(GxEPD2_GFX &disp, vector<Departure> departures, vector<Libary> libaries){
+void startDrawRoutine(GxEPD2_GFX &disp, vector<Departure> departures, vector<Libary> libaries, WeatherData weather){
   updateCounter++;
 
   if(updateCounter >= 10){
@@ -133,5 +283,5 @@ void startDrawRoutine(GxEPD2_GFX &disp, vector<Departure> departures, vector<Lib
     disp.setPartialWindow(0, 0, disp.width(), disp.height());
   }
 
-  draw(disp, departures, libaries);
+  draw(disp, departures, libaries, weather);
 }

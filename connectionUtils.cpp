@@ -1,7 +1,6 @@
 #include "connectionUtils.h"
 
-void prepareHttpClient(HTTPClient &http, const char* url, ApplicationType applicationType){
-  WiFiClientSecure client;
+void prepareHttpClient(HTTPClient &http, WiFiClientSecure &client, const char* url, ApplicationType applicationType){
   client.setInsecure();
   const char* type;
 

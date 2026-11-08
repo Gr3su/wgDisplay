@@ -56,20 +56,27 @@ void requestDeparturesForStation(HTTPClient& http, vector<Departure>& departures
 
 vector<Departure> sendTriasRequest(){
   const char* url = "https://projekte.kvv-efa.de/grosstrias/trias";
-  const int maxAttempts = 2;
+  const int maxAttempts = 3;
   vector<Departure> lastResult;
 
   for(int attempt = 0; attempt < maxAttempts; ++attempt){
     vector<Departure> departures;
 
-    HTTPClient http;
-    prepareHttpClient(http, url, ApplicationType::XML);
-    requestDeparturesForStation(http, departures, payloadBusLine, 'b');
-    http.end();
+    {
+        HTTPClient http;
+        WiFiClientSecure client;
+        prepareHttpClient(http, client, url, ApplicationType::XML);
+        requestDeparturesForStation(http, departures, payloadBusLine, 'b');
+        http.end();
+    }
 
-    prepareHttpClient(http, url, ApplicationType::XML);
-    requestDeparturesForStation(http, departures, payloadTramLine, 't');
-    http.end();
+    {
+        HTTPClient http;
+        WiFiClientSecure client;
+        prepareHttpClient(http, client, url, ApplicationType::XML);
+        requestDeparturesForStation(http, departures, payloadTramLine, 't');
+        http.end();
+    }
 
     lastResult = departures;
 

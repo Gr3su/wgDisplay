@@ -7,6 +7,7 @@
 
 #include "trias.h"
 #include "libary.h"
+#include "weather.h"
 #include "displayUtils.h"
 
 
@@ -31,6 +32,7 @@ void setup() {
   display.setFont(&FreeSansBold9pt7b);
   display.clearScreen();
   delay(2000);
+  Serial.println(display.width());
   
   setupWifi();
 
@@ -43,8 +45,9 @@ void setup() {
 void loop() {
   vector<Departure> departures = sendTriasRequest();
   vector<Libary> libaries = sendLibaryRequest();
+  WeatherData weather = sendWeatherRequest();
   
-  startDrawRoutine(display, departures, libaries);
+  startDrawRoutine(display, departures, libaries, weather);
   
   display.powerOff();
   delay(60000);
@@ -98,12 +101,13 @@ WiFi.mode(WIFI_STA);
 }
 
 void setupSystemtime(){
-  const int gmtOffsetSec = 3600;
-  const int daylightOffsetSec = 3600;
   const char* ntpServer = "europe.pool.ntp.org";
   const char* loadingMessage = "Warte auf NTP-Zeit";
+  const char* TZ_INFO = "CET-1CEST,M3.5.0,M10.5.0/3";
 
-  configTime(gmtOffsetSec, daylightOffsetSec, ntpServer);
+  configTime(0, 0, ntpServer);
+  setenv("TZ", TZ_INFO, 1);
+  tzset();
   int attempt = 0;
   displayLoadingMessage(loadingMessage, attempt);
   time_t now = time(nullptr);
